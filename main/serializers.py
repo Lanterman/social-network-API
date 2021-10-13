@@ -1,26 +1,29 @@
 from rest_framework import serializers
 
-from main.models import Published, Groups
+from main.models import Published, Groups, Comments
 
 
-class GroupsSerializers(serializers.ModelSerializer):
+class PublishedSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Published
+        fields = ('url', 'name', 'slug', 'photo', 'owner', 'group', 'date')
+
+
+class GroupsSerializer(serializers.ModelSerializer):
+    published = serializers.SlugRelatedField(slug_field='name', read_only=True, many=True)
+
     class Meta:
         model = Groups
-        fields = ('id', 'name', 'slug')
+        fields = ('name', 'slug', 'published')
 
 
-class PublishedSerializers(serializers.HyperlinkedModelSerializer):
-    group = GroupsSerializers()
-    url = serializers.HyperlinkedIdentityField(view_name='pub_detail')
-
+class PublishedAddSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Published
-        fields = ('url', 'id', 'name', 'slug', 'photo', 'date', 'owner', 'group')
+        fields = ('url', 'name', 'slug', 'photo', 'group')
 
 
-class PublishedDetailSerializers(serializers.HyperlinkedModelSerializer):
-    group = GroupsSerializers()
-
+class CommentsSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = Published
-        fields = ('id', 'name', 'slug', 'photo', 'date', 'owner', 'group')
+        model = Comments
+        fields = ('published', 'users', 'biography', 'date', 'like')

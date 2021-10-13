@@ -7,8 +7,7 @@ from users.models import Users
 
 class Abstract(models.Model):
     name = models.CharField(max_length=40, verbose_name='Название', unique=True)
-    slug = models.SlugField(error_messages={'unique': 'Такой URL уже существует!!!'},
-                            help_text='<i>Заполняется автоматически!</i>', max_length=40, unique=True,
+    slug = models.SlugField(error_messages={'unique': 'Такой URL уже существует!!!'}, max_length=40, unique=True,
                             verbose_name='URL')
     biography = models.TextField(verbose_name='Биография')
 
@@ -24,7 +23,7 @@ class Published(Abstract):
     date = models.DateTimeField(default=timezone.now, verbose_name='Время публикации')
     owner = models.ForeignKey(Users, verbose_name='Пользователь', on_delete=models.SET_NULL, null=True,
                               related_name='my_published')
-    group = models.ForeignKey('Groups', on_delete=models.CASCADE, verbose_name='Группа')
+    group = models.ForeignKey('Groups', on_delete=models.CASCADE, verbose_name='Группа', related_name='published')
 
     class Meta:
         ordering = ['-date']
@@ -55,7 +54,7 @@ class Groups(Abstract):
 
 class Comments(Abstract):
     date = models.DateTimeField(default=timezone.now, verbose_name='Время публикации')
-    like = models.ManyToManyField(Users, verbose_name='Лайки', related_name='likes')
+    like = models.ManyToManyField(Users, verbose_name='Лайки', related_name='likes', blank=True)
     published = models.ForeignKey(Published, on_delete=models.CASCADE, verbose_name='Публикация')
     users = models.ForeignKey(Users, on_delete=models.CASCADE, verbose_name='Пользователь')
     name, slug = None, None
