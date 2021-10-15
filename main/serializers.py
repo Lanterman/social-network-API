@@ -6,7 +6,7 @@ from main.models import Published, Groups, Comments
 class PublishedSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Published
-        fields = ('url', 'name', 'slug', 'photo', 'owner', 'group', 'date')
+        fields = ('url', 'name', 'slug', 'photo', 'group', 'date')
 
 
 class GroupsSerializer(serializers.ModelSerializer):
