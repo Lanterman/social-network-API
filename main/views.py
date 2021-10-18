@@ -1,5 +1,4 @@
 from rest_framework import generics
-from rest_framework.response import Response
 
 from main.models import Published, Groups
 from main.pagination import PaginationPublished
