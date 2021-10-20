@@ -24,8 +24,8 @@ class Users(User):
 
 
 class PostSubscribers(models.Model):
-    owner = models.CharField(max_length=50, verbose_name='IP')
-    user = models.ForeignKey(Users, on_delete=models.CASCADE, verbose_name='Пользователь', max_length=50)
+    owner = models.ForeignKey(Users, max_length=50, verbose_name='IP', on_delete=models.CASCADE, related_name='ow_ip')
+    user = models.ForeignKey(Users, on_delete=models.CASCADE, verbose_name='Заявка', max_length=50, related_name='us_ip')
     date = models.DateTimeField(auto_now_add=True, verbose_name='Время заявки')
     escape = models.BooleanField(default=False, verbose_name='Просмотрел(-а)')
 
