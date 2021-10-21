@@ -1,4 +1,4 @@
-from django.db.models import Avg, Prefetch
+from django.db.models import Avg, Prefetch, Count, Max
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 
@@ -18,7 +18,7 @@ class PublishedListView(generics.ListAPIView):
             groups = Groups.objects.filter(users__username=self.request.user.username)
             if groups:
                 published = Published.objects.filter(group_id__in=[group.id for group in groups]).select_related(
-                    'owner').annotate(rat=Avg('rating__star_id')).order_by('-date')
+                    'owner').annotate(rat=Avg('rating__star__value')).order_by('-date')
             else:
                 published = ''
         else:

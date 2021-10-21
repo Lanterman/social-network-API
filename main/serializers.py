@@ -22,13 +22,20 @@ class MyPublishedSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('url', 'name')
 
 
-class PostSubSerializer(serializers.ModelSerializer):
-    owner = UserSerializer()
+class PostSubOwnerSerializer(serializers.ModelSerializer):
     user = UserSerializer()
 
     class Meta:
         model = PostSubscribers
-        fields = ('owner', 'user', 'date', 'escape')
+        fields = ('user', 'date', 'escape')
+
+
+class PostSubUserSerializer(serializers.ModelSerializer):
+    owner = UserSerializer()
+
+    class Meta:
+        model = PostSubscribers
+        fields = ('owner', 'date', 'escape')
 
 
 # Main
@@ -46,8 +53,8 @@ class UsersProfileSerializer(serializers.HyperlinkedModelSerializer):
     my_group = MyGroupsSerializer(many=True)
     groups_users = MyGroupsSerializer(many=True)
     my_published = MyPublishedSerializer(many=True)
-    ow_ip = PostSubSerializer(many=True)
-    us_ip = PostSubSerializer(many=True)
+    ow_ip = PostSubOwnerSerializer(many=True)
+    us_ip = PostSubUserSerializer(many=True)
 
     class Meta:
         model = Users
