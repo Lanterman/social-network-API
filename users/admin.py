@@ -35,7 +35,7 @@ class ChatAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'author', 'is_readed', 'pub_date')
+    list_display = ('id', 'chat', 'author', 'is_readed', 'pub_date')
     list_display_links = ('id', 'author')
     fields = ('chat', 'author', 'message', 'is_readed')
     actions = ['message_true', 'message_false']

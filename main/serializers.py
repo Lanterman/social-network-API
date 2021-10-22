@@ -38,6 +38,14 @@ class PostSubUserSerializer(serializers.ModelSerializer):
         fields = ('owner', 'date', 'escape')
 
 
+class GroupPublishedSerializer(serializers.HyperlinkedModelSerializer):
+    owner = UserSerializer()
+
+    class Meta:
+        model = Published
+        fields = ('url', 'name', 'photo', 'group', 'owner', 'date')
+
+
 # Main
 class PublishedSerializer(serializers.HyperlinkedModelSerializer):
     rat = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
@@ -56,10 +64,19 @@ class UsersProfileSerializer(serializers.HyperlinkedModelSerializer):
     ow_ip = PostSubOwnerSerializer(many=True)
     us_ip = PostSubUserSerializer(many=True)
 
+
+class UsersProfileFSerializer(UsersProfileSerializer):
     class Meta:
         model = Users
         fields = ('username', 'first_name', 'last_name', 'email', 'num_tel', 'photo', 'friends', 'my_group',
                   'groups_users', 'ow_ip', 'us_ip', 'my_published')
+
+
+class UsersProfileNFSerializers(UsersProfileSerializer):
+    class Meta:
+        model = Users
+        fields = ('username', 'first_name', 'last_name', 'email', 'num_tel', 'photo', 'friends', 'my_group',
+                  'groups_users', 'ow_ip', 'my_published')
 
 
 class HomeUpdateSerializer(serializers.ModelSerializer):
@@ -76,21 +93,54 @@ class MessagesSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('chat', 'author', 'message', 'pub_date', 'is_readed')
 
 
-class ChatSerializer(serializers.ModelSerializer):
+class ChatMessagesSerializer(serializers.ModelSerializer):
+    author = serializers.SlugField(source='author.username')
+
     class Meta:
-        model = Chat
-        fields = '__all__'
+        model = Message
+        fields = ('chat', 'author', 'message', 'pub_date', 'is_readed')
 
 
+class MessageCreateSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Message
+        fields = ('message',)
 
+
+class FriendsSerializer(serializers.HyperlinkedModelSerializer):
+    friends = UserSerializer(many=True)
+
+    class Meta:
+        model = Users
+        fields = ('friends',)
 
 
 class GroupsSerializer(serializers.ModelSerializer):
-    published = serializers.SlugRelatedField(slug_field='name', read_only=True, many=True)
+    groups_users = MyGroupsSerializer(many=True)
 
     class Meta:
         model = Groups
-        fields = ('name', 'slug', 'published')
+        fields = ('groups_users',)
+
+
+class GroupCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Groups
+        fields = ('name', 'slug', 'photo')
+
+
+class GroupDetailSerializer(serializers.ModelSerializer):
+    owner = UserSerializer()
+    users = UserSerializer(many=True)
+    published = GroupPublishedSerializer(many=True)
+
+    class Meta:
+        model = Groups
+        fields = ('name', 'slug', 'photo', 'owner', 'users', 'published')
+
+
+
 
 
 class PublishedAddSerializer(serializers.HyperlinkedModelSerializer):

@@ -1,5 +1,7 @@
 from rest_framework import permissions
 
+from users.models import Users
+
 
 class Anonymous(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -9,3 +11,21 @@ class Anonymous(permissions.BasePermission):
 class ID(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.pk == request.user.pk
+
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.pk == request.user.pk
+
+
+class IsOwnerOrClose(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.pk == request.user.pk
+
+
+class CheckMembers(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        user = Users.objects.get(pk=request.user.pk)
+        return user in obj.members.all()

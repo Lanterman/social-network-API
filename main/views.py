@@ -1,11 +1,14 @@
-from django.db.models import Avg, Prefetch, Count, Max
-from rest_framework import generics, permissions
+from django.db.models import Avg, Prefetch, Count
+from django.shortcuts import redirect
+from django.views.generic.base import View
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 
 from main.models import Published, Groups
 from main.pagination import PaginationPublished
 from main.serializers import *
 from users.models import Users, Chat
+from users.permissions import IsOwnerOrReadOnly, IsOwnerOrClose, CheckMembers
 
 
 class PublishedListView(generics.ListAPIView):
@@ -27,18 +30,19 @@ class PublishedListView(generics.ListAPIView):
         return published
 
 
-class HomeView(generics.RetrieveAPIView):
+class HomeView(generics.RetrieveAPIView, generics.UpdateAPIView):
     """Вывод информации пользователя"""
     queryset = Users.objects.all()
-    serializer_class = UsersProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-class HomeUpdateView(generics.UpdateAPIView):
-    """Изменение аватарки пользователя"""
-    queryset = Users.objects.all()
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     serializer_class = HomeUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.pk == request.user.pk:
+            serializer = UsersProfileFSerializer(user, context={'request': request})
+        else:
+            serializer = UsersProfileNFSerializers(user, context={'request': request})
+        return Response(serializer.data)
 
 
 class MessagesView(generics.ListAPIView):
@@ -50,7 +54,7 @@ class MessagesView(generics.ListAPIView):
         chats = Chat.objects.filter(members=self.request.user.id).prefetch_related(
             'members',
             Prefetch(
-                'message_set',
+                'message_all',
                 queryset=Message.objects.filter(chat__members=self.request.user.id),
                 to_attr='set_mes'
             )
@@ -59,22 +63,73 @@ class MessagesView(generics.ListAPIView):
         return chats
 
 
-class ChatDetailView(generics.RetrieveAPIView):  # Доделать
-    """Вывод сообщений определенного чата пользователя"""
-    queryset = Chat
-    serializer_class = ChatSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class ChatDetailView(generics.RetrieveAPIView, generics.CreateAPIView):
+    """Вывод сообщений определенного чата пользователя и создание сообщения"""
+    queryset = Chat.objects.all()
+    permission_classes = [permissions.IsAuthenticated, CheckMembers]
+    serializer_class = MessageCreateSerializer
 
     def get(self, request, *args, **kwargs):
         user = Users.objects.get(pk=self.request.user.pk)
         chat = self.get_object()
         messages = Message.objects.filter(chat=chat).select_related('author')
-        if user in chat.members.all():
-            messages.filter(is_readed=False).exclude(author=user).update(is_readed=True)
-        else:
-            chat = None
-        serializer = self.get_serializer(chat)
+        messages.filter(is_readed=False).exclude(author=user).update(is_readed=True)
+        serializer = ChatMessagesSerializer(chat.message_all, many=True)
         return Response(serializer.data)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.POST)
+        chat = self.get_object()
+        if serializer.is_valid():
+            Message.objects.create(**serializer.validated_data, chat_id=chat.id, author_id=request.user.pk)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class CreateDialogView(View):
+    """Создание чата/беседы(в будущем)"""
+    def get(self, request, user_id):
+        chats = Chat.objects.filter(members__in=[request.user.id, user_id]).annotate(c=Count('members')).filter(c=2)
+        if chats.count():
+            chat = chats.first()
+        else:
+            chat = Chat.objects.create()
+            chat.members.add(request.user.pk)
+            chat.members.add(user_id)
+        return redirect(chat)
+
+
+class FriendsView(generics.RetrieveAPIView):
+    """Список друзей"""
+    queryset = Users.objects.all()
+    serializer_class = FriendsSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
+
+
+class GroupsView(generics.RetrieveAPIView):
+    """Список групп"""
+    queryset = Users.objects.all()
+    serializer_class = GroupsSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
+
+
+class AddGroupView(generics.CreateAPIView):
+    """Создание группы"""
+    serializer_class = GroupCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            Groups.objects.create(**serializer.validated_data, owner_id=request.user.pk)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DetailGroupView(generics.RetrieveAPIView):
+    queryset = Groups.objects.all()
+    serializer_class = GroupDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
 
 
 
@@ -85,18 +140,10 @@ class PublishedDetailView(generics.RetrieveAPIView):
     serializer_class = PublishedSerializer
 
 
-class GroupsView(generics.ListAPIView):
-    queryset = Groups.objects.all()
-    serializer_class = GroupsSerializer
 
 
-class GroupDetailView(generics.RetrieveAPIView):
-    queryset = Groups.objects.all()
-    serializer_class = GroupsSerializer
 
 
-class AddGroupView(generics.CreateAPIView):
-    serializer_class = GroupsSerializer
 
 
 class AddPublished(generics.CreateAPIView):

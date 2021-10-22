@@ -49,7 +49,7 @@ class Chat(models.Model):
 
 
 class Message(models.Model):
-    chat = models.ForeignKey(Chat, verbose_name="Чат", on_delete=models.CASCADE)
+    chat = models.ForeignKey(Chat, verbose_name="Чат", on_delete=models.CASCADE, related_name='message_all')
     author = models.ForeignKey(Users, verbose_name="Пользователь", on_delete=models.CASCADE)
     message = models.TextField("Сообщение", blank=True)
     pub_date = models.DateTimeField('Дата сообщения', auto_now_add=True)
