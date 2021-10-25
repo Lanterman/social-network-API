@@ -32,7 +32,7 @@ class Published(Abstract):
         db_table = 'Публикации'
 
     def get_absolute_url(self):
-        return reverse('detail_publish', kwargs={'publish_slug': self.slug})
+        return reverse('published-detail', kwargs={'pk': self.pk})
 
 
 class Groups(Abstract):
@@ -49,13 +49,13 @@ class Groups(Abstract):
         db_table = 'Группы'
 
     def get_absolute_url(self):  # Вместо тега url и добавляет кнопку на страницу записи в админке
-        return reverse('detail_group', kwargs={'group_slug': self.slug})
+        return reverse('groups-detail', kwargs={'pk': self.pk})
 
 
 class Comments(Abstract):
     date = models.DateTimeField(default=timezone.now, verbose_name='Время публикации')
     like = models.ManyToManyField(Users, verbose_name='Лайки', related_name='likes', blank=True)
-    published = models.ForeignKey(Published, on_delete=models.CASCADE, verbose_name='Публикация')
+    published = models.ForeignKey(Published, on_delete=models.CASCADE, verbose_name='Публикация', related_name='com_set')
     users = models.ForeignKey(Users, on_delete=models.CASCADE, verbose_name='Пользователь')
     name, slug = None, None
 
@@ -67,9 +67,6 @@ class Comments(Abstract):
 
     def __str__(self):
         return self.published.name
-
-    def get_absolute_url(self):
-        return reverse('comments', kwargs={'publish_slug': self.published.slug})
 
 
 class RatingStar(models.Model):

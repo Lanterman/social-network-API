@@ -20,7 +20,7 @@ class Users(User):
         return self.username
 
     def get_absolute_url(self):
-        return reverse('home', kwargs={'user_pk': self.pk})
+        return reverse('users-detail', kwargs={'pk': self.pk})
 
 
 class PostSubscribers(models.Model):
@@ -45,7 +45,7 @@ class Chat(models.Model):
         return f'{self.pk}'
 
     def get_absolute_url(self):
-        return reverse('chat', kwargs={'chat_id': self.pk})
+        return reverse('chat-detail', kwargs={'pk': self.pk})
 
 
 class Message(models.Model):

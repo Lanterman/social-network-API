@@ -21,13 +21,13 @@ class UserRegisterView(generics.CreateAPIView):
 class UpdateUserView(generics.UpdateAPIView):  # Соединить с ProfileUserView
     queryset = Users.objects.all()
     serializer_class = UpdateUserSerializer
-    permission_classes = (permissions.IsAuthenticated, ID)
+    permission_classes = (permissions.IsAuthenticated, IsOwnerOrClose)
 
 
 class ProfileUserView(generics.RetrieveAPIView):
     queryset = Users.objects.all()
     serializer_class = ProfileUserSerializer
-    permission_classes = (permissions.IsAuthenticated, ID)
+    permission_classes = (permissions.IsAuthenticated, IsOwnerOrClose)
 
 
 class ChangePasswordView(generics.UpdateAPIView):

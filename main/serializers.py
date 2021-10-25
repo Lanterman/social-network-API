@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from main.models import Published, Groups, Comments
-from users.models import Users, PostSubscribers, Message, Chat
+from main.models import Published, Groups, Comments, Rating, RatingStar
+from users.models import Users, PostSubscribers, Message
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -44,6 +44,15 @@ class GroupPublishedSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Published
         fields = ('url', 'name', 'photo', 'group', 'owner', 'date')
+
+
+class CommentsSerializer(serializers.ModelSerializer):
+    users = UserSerializer()
+    like = UserSerializer(many=True)
+
+    class Meta:
+        model = Comments
+        fields = ('biography', 'users', 'date', 'like')
 
 
 # Main
@@ -140,16 +149,37 @@ class GroupDetailSerializer(serializers.ModelSerializer):
         fields = ('name', 'slug', 'photo', 'owner', 'users', 'published')
 
 
-
-
-
-class PublishedAddSerializer(serializers.HyperlinkedModelSerializer):
+class AddPublishedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Published
-        fields = ('url', 'name', 'slug', 'photo', 'group')
+        fields = ('name', 'slug', 'biography', 'photo')
 
 
-class CommentsSerializer(serializers.HyperlinkedModelSerializer):
+class DetailPublishSerializer(PublishedSerializer):
+    com_set = CommentsSerializer(many=True)
+
+    class Meta:
+        model = Published
+        fields = ('name', 'slug', 'photo', 'group', 'rat', 'owner', 'date', 'com_set')
+
+
+class CommentsAddSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comments
-        fields = ('published', 'users', 'biography', 'date', 'like')
+        fields = ('biography',)
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    star = serializers.ChoiceField(choices=RatingStar.objects.all())
+
+    class Meta:
+        model = Rating
+        fields = ('star',)
+
+    def create(self, validated_data):
+        rating = Rating.objects.update_or_create(
+                ip=validated_data.get('ip'),
+                published=validated_data.get("published"),
+                defaults={'star': validated_data.get("star")}
+            )
+        return rating
