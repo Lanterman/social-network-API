@@ -1,4 +1,4 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, viewsets, mixins
 from rest_framework.response import Response
 
 from users.permissions import *
@@ -7,7 +7,6 @@ from users.serializers import *
 
 class UserRegisterView(generics.CreateAPIView):
     """Регистрация пользователей"""
-
     serializer_class = UserSerializer
     permission_classes = [Anonymous]
 
@@ -18,16 +17,10 @@ class UserRegisterView(generics.CreateAPIView):
         user.save()
 
 
-class UpdateUserView(generics.UpdateAPIView):  # Соединить с ProfileUserView
+class UserViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = Users.objects.all()
-    serializer_class = UpdateUserSerializer
-    permission_classes = (permissions.IsAuthenticated, IsOwnerOrClose)
-
-
-class ProfileUserView(generics.RetrieveAPIView):
-    queryset = Users.objects.all()
-    serializer_class = ProfileUserSerializer
-    permission_classes = (permissions.IsAuthenticated, IsOwnerOrClose)
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
 
 
 class ChangePasswordView(generics.UpdateAPIView):

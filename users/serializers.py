@@ -26,11 +26,7 @@ class UserChangePasswordSerializer(serializers.ModelSerializer):
         return value
 
 
-class ProfileUserSerializer(serializers.ModelSerializer):
+class ProfileSerializer(AbstractSerializers):
     class Meta:
         model = Users
         fields = ('first_name', 'last_name', 'email', 'num_tel')
-
-
-class UpdateUserSerializer(AbstractSerializers, ProfileUserSerializer):
-    pass
