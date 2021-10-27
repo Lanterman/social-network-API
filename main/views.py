@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Prefetch, Count, Q
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.views.generic.base import View
 from rest_framework import generics, permissions, status, filters, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -35,7 +34,7 @@ class PublishViewSet(viewsets.GenericViewSet,
         if self.action in ('update', 'partial_update', 'destroy'):
             permission_classes = [permissions.IsAuthenticated, IsOwnerPublished]
         else:
-            permission_classes = [permissions.AllowAny]
+            permission_classes = []
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
@@ -100,7 +99,7 @@ class UserViewSet(viewsets.GenericViewSet,
                   mixins.ListModelMixin,
                   mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin):
-    """Обновление/вывод пользователя и вывод друзей пользователя. Система друзей"""
+    """Обновление/вывод пользователя и вывод друзей пользователя, система друзей, проверка/создание чатов"""
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_serializer_class(self):
@@ -115,7 +114,7 @@ class UserViewSet(viewsets.GenericViewSet,
         if self.action in ('update', 'partial_update'):
             return HomeUpdateSerializer
 
-    def get_permissions(self):  # Разрешения для friend_activity
+    def get_permissions(self):  # Разрешения для friend_activity, create_dialog(убрать, если на своей старинце)
         if self.action == 'list':
             permission_classes = [permissions.IsAuthenticated]
         # elif self.action == 'friend_activity':
@@ -160,17 +159,24 @@ class UserViewSet(viewsets.GenericViewSet,
             return Response(data={'status': 'Заявку на дружбу отменена.'}, status=status.HTTP_200_OK)
         return Response(data={'status': 'Ошибка.'}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=True)
+    def create_dialog(self, request, *args, **kwargs):
+        """Создание чата/беседы(в будущем)"""
+        user = self.get_object()
+        chats = Chat.objects.filter(members__in=[self.request.user.id, user]).annotate(c=Count('members')).filter(c=2)
+        if chats.count():
+            chat = chats.first()
+        else:
+            chat = Chat.objects.create()
+            chat.members.add(self.request.user.pk)
+            chat.members.add(user)
+        return redirect(chat)
 
 
-
-
-
-class MessagesView(generics.ListAPIView):
+class ChatViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
     """Вывод чатов пользователя"""
     serializer_class = MessagesSerializer
     permission_classes = [permissions.IsAuthenticated]
-    # filter_backends = [filters.SearchFilter]
-    # search_fields = ['id']
 
     def get_queryset(self):
         chats = Chat.objects.filter(members=self.request.user.id).prefetch_related(
@@ -186,7 +192,7 @@ class MessagesView(generics.ListAPIView):
 
 
 class ChatDetailView(generics.RetrieveAPIView, generics.CreateAPIView):
-    """Вывод сообщений определенного чата пользователя и создание сообщения"""
+    """Вывод сообщений определенного чата пользователей и создание сообщений"""
     queryset = Chat.objects.all()
     permission_classes = [permissions.IsAuthenticated, CheckMembers]
     serializer_class = MessageCreateSerializer
@@ -208,17 +214,6 @@ class ChatDetailView(generics.RetrieveAPIView, generics.CreateAPIView):
         return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
 
 
-class CreateDialogView(View):
-    """Создание чата/беседы(в будущем)"""
-    def get(self, request, user_id):
-        chats = Chat.objects.filter(members__in=[request.user.id, user_id]).annotate(c=Count('members')).filter(c=2)
-        if chats.count():
-            chat = chats.first()
-        else:
-            chat = Chat.objects.create()
-            chat.members.add(request.user.pk)
-            chat.members.add(user_id)
-        return redirect(chat)
 
 
 class AddGroupView(generics.CreateAPIView):

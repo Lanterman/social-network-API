@@ -1,20 +1,18 @@
 from django.urls import path
-from rest_framework.routers import SimpleRouter
+from rest_framework.routers import SimpleRouter, DefaultRouter
 
 from main.views import *
 
 
-router = SimpleRouter()
+router = DefaultRouter()
 router.register(r'published', PublishViewSet, basename='published')
-router.register(r'group', GroupsViewSet, basename='groups')
+router.register(r'groups', GroupsViewSet, basename='groups')
 router.register(r'friends', UserViewSet, basename='users')
+router.register(r'chats', ChatViewSet, basename='chat')
 
 
 urlpatterns = [
-    # path('home/<int:pk>/', HomeView.as_view(), name='users-detail'),
-    path('messages/', MessagesView.as_view(), name='messages'),
     path('chat/<int:pk>/', ChatDetailView.as_view(), name='chat-detail'),
-    # path('friends/<int:pk>/', FriendsView.as_view(), name='friends'),
 
     path('group/group_add/', AddGroupView.as_view(), name='group_add'),
     path('group/<int:pk>/pub_add/', AddPublishedView.as_view(), name='pub_add'),
