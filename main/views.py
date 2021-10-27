@@ -3,21 +3,40 @@ from django.db.models import Avg, Prefetch, Count, Q
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic.base import View
-from rest_framework import generics, permissions, status, filters
+from rest_framework import generics, permissions, status, filters, viewsets, mixins
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from main.pagination import PaginationPublished
 from main.serializers import *
 from main.models import *
 from users.models import Users, Chat
-from users.permissions import IsOwnerOrReadOnly, IsOwnerOrClose, CheckMembers, IsOwnerPublished, IsOwnerGroup
+from users.permissions import IsOwnerOrReadOnly, CheckMembers, IsOwnerPublished, IsOwnerGroup
 
 
-class PublishedListView(generics.ListAPIView):
-    """Вывод списка публикаций в зависимости от авторизации"""
-    serializer_class = PublishedSerializer
+class PublishViewSet(viewsets.GenericViewSet,
+                     mixins.ListModelMixin,
+                     mixins.RetrieveModelMixin,
+                     mixins.UpdateModelMixin,
+                     mixins.DestroyModelMixin):
+    """Удаление/обновление/вывод публикации и вывод публикаций"""
     pagination_class = PaginationPublished
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'owner__username']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return PublishedSerializer
+        if self.action == 'retrieve':
+            return DetailPublishSerializer
+        if self.action in ('update', 'partial_update'):
+            return UpdatePublishedSerializer
+
+    def get_permissions(self):
+        if self.action in ('update', 'partial_update', 'destroy'):
+            permission_classes = [permissions.IsAuthenticated, IsOwnerPublished]
+        else:
+            permission_classes = [permissions.AllowAny]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         if self.request.user.is_authenticated:
@@ -33,19 +52,117 @@ class PublishedListView(generics.ListAPIView):
         return published
 
 
-class HomeView(generics.RetrieveAPIView, generics.UpdateAPIView):
-    """Вывод информации пользователя"""
-    queryset = Users.objects.all()
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    serializer_class = HomeUpdateSerializer
+class GroupsViewSet(viewsets.GenericViewSet,
+                    mixins.ListModelMixin,
+                    mixins.RetrieveModelMixin,
+                    mixins.UpdateModelMixin,
+                    mixins.DestroyModelMixin):
+    """Удаление/обновление/вывод группы и вывод групп. Подписаться на группу/отписаться от группы."""
 
-    def get(self, request, *args, **kwargs):
-        user = self.get_object()
-        if user.pk == request.user.pk:
-            serializer = UsersProfileFSerializer(user, context={'request': request})
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return MyGroupsSerializer
+        if self.action == 'retrieve':
+            return GroupDetailSerializer
+        if self.action in ('update', 'partial_update', 'create'):
+            return GroupCreateSerializer
+
+    def get_permissions(self):
+        if self.action in ('update', 'partial_update', 'destroy'):
+            permission_classes = [permissions.IsAuthenticated, IsOwnerGroup]
         else:
-            serializer = UsersProfileNFSerializers(user, context={'request': request})
-        return Response(serializer.data)
+            permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        user = Users.objects.get(id=self.request.user.pk)
+        if self.action == 'list':
+            queryset = Groups.objects.filter(users=user)
+        else:
+            queryset = Groups.objects.all()
+        return queryset
+
+    @action(detail=True, url_path='group_activity', url_name='group_activity')
+    def group_activity(self, request, *args, **kwargs):
+        """Подписаться на группу/отписаться от группы"""
+        group = self.get_object()
+        user = Users.objects.get(pk=request.user.pk)
+        if user in group.users.all():
+            group.users.remove(user)
+            return Response(data={'status': 'Вы отписались от группы.'}, status=status.HTTP_200_OK)
+        if user not in group.users.all():
+            group.users.add(user)
+            return Response(data={'status': 'Вы подписались от группы.'}, status=status.HTTP_200_OK)
+        return Response(data={'status': 'Ошибка.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UserViewSet(viewsets.GenericViewSet,
+                  mixins.ListModelMixin,
+                  mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin):
+    """Обновление/вывод пользователя и вывод друзей пользователя. Система друзей"""
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return FriendsSerializer
+        if self.action == 'retrieve':
+            user = self.get_object()
+            if user.pk == self.request.user.pk:
+                return UsersProfileFSerializer
+            else:
+                return UsersProfileNFSerializers
+        if self.action in ('update', 'partial_update'):
+            return HomeUpdateSerializer
+
+    def get_permissions(self):  # Разрешения для friend_activity
+        if self.action == 'list':
+            permission_classes = [permissions.IsAuthenticated]
+        # elif self.action == 'friend_activity':
+        #     permission_classes = [permissions.IsAuthenticated, IsReadOnlyOrNotOwner]
+        else:
+            permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        user = Users.objects.filter(id=self.request.user.pk)
+        if self.action == 'list':
+            queryset = user
+        else:
+            queryset = Users.objects.all()
+        return queryset
+
+    @action(detail=True, url_path='user_activity', url_name='user_activity')
+    def friend_activity(self, request, *args, **kwargs):
+        """Система друзей"""
+        user = self.get_object()
+        you = Users.objects.get(pk=request.user.pk)
+        try:
+            subs = PostSubscribers.objects.get(
+                Q(owner_id=user.id, user_id=you.pk) |
+                Q(owner_id=you.id, user_id=user.pk)
+            )
+        except Exception:
+            subs = ''
+        if you in user.friends.all():
+            you.friends.remove(user)
+            PostSubscribers.objects.create(owner_id=you.id, user_id=user.id)
+            return Response(data={'status': 'Пользователь удален из друзей.'}, status=status.HTTP_200_OK)
+        elif not subs:
+            PostSubscribers.objects.create(owner_id=user.id, user_id=you.id)
+            return Response(data={'status': 'Заявка на дружбу отправлена.'}, status=status.HTTP_200_OK)
+        elif subs.owner == you:
+            you.friends.add(user)
+            PostSubscribers.objects.filter(owner_id=you.id, user_id=user.id).delete()
+            return Response(data={'status': 'Пользователь добавлен в друзья.'}, status=status.HTTP_200_OK)
+        elif subs.owner == user:
+            PostSubscribers.objects.filter(owner_id=user.id, user_id=you.id).delete()
+            return Response(data={'status': 'Заявку на дружбу отменена.'}, status=status.HTTP_200_OK)
+        return Response(data={'status': 'Ошибка.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
 
 
 class MessagesView(generics.ListAPIView):
@@ -104,20 +221,6 @@ class CreateDialogView(View):
         return redirect(chat)
 
 
-class FriendsView(generics.RetrieveAPIView):
-    """Список друзей"""
-    queryset = Users.objects.all()
-    serializer_class = FriendsSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
-
-
-class GroupsView(generics.RetrieveAPIView):
-    """Список групп"""
-    queryset = Users.objects.all()
-    serializer_class = GroupsSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
-
-
 class AddGroupView(generics.CreateAPIView):
     """Создание группы"""
     serializer_class = GroupCreateSerializer
@@ -131,17 +234,10 @@ class AddGroupView(generics.CreateAPIView):
         return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
 
 
-class DetailGroupView(generics.RetrieveAPIView):
-    """Детальная информация группы"""
-    queryset = Groups.objects.all()
-    serializer_class = GroupDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
 class AddPublishedView(generics.CreateAPIView):
     """Создание публикации"""
     queryset = Groups.objects.all()
-    serializer_class = AddPublishedSerializer
+    serializer_class = UpdatePublishedSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -153,12 +249,6 @@ class AddPublishedView(generics.CreateAPIView):
                                      )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
-
-
-class DetailPublishView(generics.RetrieveAPIView):
-    """Детальная информация публикации и комментариев под записью"""
-    queryset = Published.objects.all().select_related('owner').annotate(rat=Avg('rating__star__value')).order_by('-date')
-    serializer_class = DetailPublishSerializer
 
 
 class AddCommentView(generics.CreateAPIView):
@@ -179,97 +269,6 @@ class AddCommentView(generics.CreateAPIView):
 
 
 # Logic
-def del_group(request, group_slug):
-    Groups.objects.get(slug=group_slug).delete()
-    return redirect(reverse('groups', kwargs={'pk': request.user.pk}))
-
-
-def del_pub_group(request, pub_slug, group_slug):
-    group = Groups.objects.get(slug=group_slug)
-    Published.objects.get(slug=pub_slug).delete()
-    return redirect(group)
-
-
-def del_published(request, pub_slug):
-    user = Users.objects.get(pk=request.user.pk)
-    Published.objects.get(slug=pub_slug).delete()
-    return redirect(user)
-
-
-class UpdateGroup(generics.UpdateAPIView):
-    queryset = Groups.objects.all()
-    serializer_class = GroupCreateSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerGroup]
-
-
-class UpdatePublished(generics.UpdateAPIView):
-    queryset = Published.objects.all()
-    serializer_class = AddPublishedSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerPublished]
-
-
-def friend_activity(request, user_pk):
-    q = Users.objects.get(pk=user_pk)
-    user = Users.objects.get(pk=request.user.pk)
-    try:
-        subs = PostSubscribers.objects.select_related('user').get(
-            Q(owner=user.username, user_id=q.pk) |
-            Q(owner=q.username, user_id=user.pk)
-        )
-    except Exception:
-        subs = ''
-    if q in user.friends.all():
-        q.friends.remove(request.user)
-        PostSubscribers.objects.create(owner=user.username, user_id=q.id)
-    elif not subs:
-        PostSubscribers.objects.create(owner=q.username, user_id=user.id)
-    elif subs.owner != q.username:
-        user.friends.add(q)
-        PostSubscribers.objects.filter(owner=user.username, user_id=q.id).delete()
-    elif subs.owner == q.username:
-        PostSubscribers.objects.filter(owner=q.username, user_id=user.id).delete()
-    return redirect(q)
-
-
-def friend_hide(request, user_pk):
-    q = Users.objects.get(pk=user_pk)
-    user = Users.objects.get(pk=request.user.pk)
-    PostSubscribers.objects.filter(owner=user.username, user_id=q.id).update(escape=True)
-    return redirect(user)
-
-
-def friend_accept(request, user_pk):
-    q = Users.objects.get(pk=user_pk)
-    user = Users.objects.get(pk=request.user.pk)
-    user.friends.add(q)
-    PostSubscribers.objects.filter(owner=user.username, user_id=q.id).delete()
-    return redirect(user)
-
-
-def friend_del_primary(request, user_pk):
-    q = Users.objects.get(pk=user_pk)
-    user = Users.objects.get(pk=request.user.pk)
-    user.friends.remove(q)
-    PostSubscribers.objects.create(owner=user.username, user_id=q.id)
-    return redirect(reverse('friends', kwargs={'pk': user.pk}))
-
-
-def group_activity(request, group_slug):
-    q = Groups.objects.prefetch_related('users').get(slug=group_slug)
-    user = Users.objects.get(pk=request.user.pk)
-    if user in q.users.all():
-        q.users.remove(request.user)
-    else:
-        q.users.add(user)
-    return redirect(q)
-
-
-def group_quit_primary(request, group_slug):
-    q = Groups.objects.get(slug=group_slug)
-    q.users.remove(request.user)
-    return redirect(reverse('groups', kwargs={'pk': request.user.pk}))
-
-
 class AddStarRating(generics.CreateAPIView):
     """Звездный рейтинг"""
     queryset = Published.objects.all()

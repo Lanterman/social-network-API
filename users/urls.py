@@ -5,11 +5,11 @@ from users.views import *
 
 
 router = SimpleRouter()
-router.register(r'', UserViewSet)
+router.register(r'profile', UserProfileViewSet, basename='profile')
 
 
 urlpatterns = [
-    path('', include(router.urls)),
     path('register/', UserRegisterView.as_view(), name='register'),
     path('password_change/', ChangePasswordView.as_view(), name='password_change'),
+    path('', include(router.urls)),
 ]

@@ -36,10 +36,6 @@ class IsOwnerPublished(permissions.BasePermission):
         return obj.owner.pk == request.user.pk or obj.group.owner == request.user.pk
 
 
-# class IsOwnerOrClose(permissions.BasePermission):
-#     def has_object_permission(self, request, view, obj):
-#         return obj.pk == request.user.pk
-
 # class ReadOnlyIfAnonymous(permissions.BasePermission):
 #     def has_object_permission(self, request, view, obj):
 #         if request.method in permissions.SAFE_METHODS:

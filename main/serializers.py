@@ -46,6 +46,20 @@ class GroupPublishedSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('url', 'name', 'photo', 'group', 'owner', 'date')
 
 
+class RatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rating
+        fields = ('star',)
+
+    def create(self, validated_data):
+        rating = Rating.objects.update_or_create(
+                ip=validated_data.get('ip'),
+                published=validated_data.get("published"),
+                defaults={'star': validated_data.get("star")}
+            )
+        return rating
+
+
 class CommentsSerializer(serializers.ModelSerializer):
     users = UserSerializer()
     like = UserSerializer(many=True)
@@ -124,14 +138,6 @@ class FriendsSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('friends',)
 
 
-class GroupsSerializer(serializers.ModelSerializer):
-    groups_users = MyGroupsSerializer(many=True)
-
-    class Meta:
-        model = Groups
-        fields = ('groups_users',)
-
-
 class GroupCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -149,10 +155,17 @@ class GroupDetailSerializer(serializers.ModelSerializer):
         fields = ('name', 'slug', 'photo', 'owner', 'users', 'published')
 
 
-class AddPublishedSerializer(serializers.ModelSerializer):
+# class AddPublishedSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Published
+#         fields = ('name', 'slug', 'biography', 'photo', 'group')
+
+
+class UpdatePublishedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Published
         fields = ('name', 'slug', 'biography', 'photo')
+
 
 
 class DetailPublishSerializer(PublishedSerializer):
@@ -167,19 +180,3 @@ class CommentsAddSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comments
         fields = ('biography',)
-
-
-class RatingSerializer(serializers.ModelSerializer):
-    star = serializers.ChoiceField(choices=RatingStar.objects.all())
-
-    class Meta:
-        model = Rating
-        fields = ('star',)
-
-    def create(self, validated_data):
-        rating = Rating.objects.update_or_create(
-                ip=validated_data.get('ip'),
-                published=validated_data.get("published"),
-                defaults={'star': validated_data.get("star")}
-            )
-        return rating

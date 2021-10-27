@@ -1,13 +1,13 @@
-from rest_framework import generics, status, viewsets, mixins
+from rest_framework import generics, status, viewsets, mixins, permissions
 from rest_framework.response import Response
 
-from users.permissions import *
+from users.permissions import Anonymous, IsOwnerOrClose
 from users.serializers import *
 
 
 class UserRegisterView(generics.CreateAPIView):
     """Регистрация пользователей"""
-    serializer_class = UserSerializer
+    serializer_class = UserRegisterSerializer
     permission_classes = [Anonymous]
 
     def perform_create(self, serializer):
@@ -17,13 +17,18 @@ class UserRegisterView(generics.CreateAPIView):
         user.save()
 
 
-class UserViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
+class UserProfileViewSet(viewsets.GenericViewSet,
+                         mixins.RetrieveModelMixin,
+                         mixins.UpdateModelMixin, mixins.DestroyModelMixin
+                         ):
+    """Профиль пользователя"""
     queryset = Users.objects.all()
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrClose]
 
 
 class ChangePasswordView(generics.UpdateAPIView):
+    """Смена пароля аккаунта"""
     serializer_class = UserChangePasswordSerializer
     permission_classes = (permissions.IsAuthenticated,)
 

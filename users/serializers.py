@@ -5,7 +5,7 @@ from users.utils import AbstractSerializers
 from rest_framework import serializers
 
 
-class UserSerializer(AbstractSerializers):
+class UserRegisterSerializer(AbstractSerializers):
     class Meta:
         model = Users
         fields = ('username', 'password', 'first_name', 'last_name', 'email', 'num_tel', 'photo')
