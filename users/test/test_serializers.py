@@ -10,7 +10,7 @@ class ProfileUserSerializerTestCase(TestCase):
                                       first_name='user_1', last_name='user_1')
         user_2 = Users.objects.create(username='user_2', email='user_2@mail.ru', num_tel='3752257213',
                                       first_name='user_2', last_name='user_2')
-        data = ProfileUserSerializer([user_1, user_2], many=True).data
+        data = ProfileSerializer([user_1, user_2], many=True).data
         exp_data = [{'first_name': 'user_1', 'last_name': 'user_1', 'email': 'user_1@mail.ru', 'num_tel': '3752257213'},
                     {'first_name': 'user_2', 'last_name': 'user_2', 'email': 'user_2@mail.ru', 'num_tel': '3752257213'}]
         self.assertEqual(data[0]['first_name'], 'user_1')
@@ -24,7 +24,7 @@ class UpdateUserSerializerTestCase(TestCase):
                                       first_name='user_1', last_name='user_1')
         user_2 = Users.objects.create(username='user_2', email='user_2@mail.ru', num_tel='3752257213',
                                       first_name='user_2', last_name='user_2')
-        data = ProfileUserSerializer([user_1, user_2], many=True).data
+        data = ProfileSerializer([user_1, user_2], many=True).data
         exp_data = [{'first_name': 'user_1', 'last_name': 'user_1', 'email': 'user_1@mail.ru', 'num_tel': '3752257213'},
                     {'first_name': 'user_2', 'last_name': 'user_2', 'email': 'user_2@mail.ru', 'num_tel': '3752257213'}]
         self.assertEqual(data[0]['first_name'], 'user_1')

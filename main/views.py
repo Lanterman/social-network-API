@@ -51,7 +51,7 @@ class PublishViewSet(viewsets.ReadOnlyModelViewSet, mixins.UpdateModelMixin, mix
                 published = ''
         else:
             published = Published.objects.all().select_related('owner').annotate(rat=Avg(
-                'rating__star_id')).order_by('-date')
+                'rating__star__value')).order_by('-date')
         return published
 
     @action(methods=['post'], detail=True)
