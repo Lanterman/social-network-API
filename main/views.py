@@ -1,26 +1,24 @@
-from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Prefetch, Count, Q
 from django.shortcuts import redirect
-from django.urls import reverse
-from rest_framework import generics, permissions, status, filters, viewsets, mixins
+from rest_framework import generics, status, filters, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from main.pagination import PaginationPublished
 from main.serializers import *
 from main.models import *
-from users.models import Users, Chat
-from users.permissions import IsOwnerOrReadOnly, CheckMembers, IsOwnerPublished, IsOwnerGroup
+from users.models import Chat
+from users.permissions import *
 
 
-class PublishViewSet(viewsets.GenericViewSet,
-                     mixins.ListModelMixin,
-                     mixins.RetrieveModelMixin,
-                     mixins.UpdateModelMixin,
-                     mixins.DestroyModelMixin):
-    """Удаление/обновление/вывод публикации и вывод публикаций"""
+class PublishViewSet(viewsets.ReadOnlyModelViewSet, mixins.UpdateModelMixin, mixins.DestroyModelMixin):
+    """
+    Удаление/обновление/вывод публикации и вывод публикаций,
+    установка рейтинга к публикациям,
+    добавление комментарие к публикациям
+    """
     pagination_class = PaginationPublished
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'owner__username']
+    search_fields = ['name', 'owner__username', 'slug']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -29,10 +27,16 @@ class PublishViewSet(viewsets.GenericViewSet,
             return DetailPublishSerializer
         if self.action in ('update', 'partial_update'):
             return UpdatePublishedSerializer
+        if self.action == 'add_rating':
+            return RatingSerializer
+        if self.action == 'add_comment':
+            return CommentsAddSerializer
 
     def get_permissions(self):
         if self.action in ('update', 'partial_update', 'destroy'):
             permission_classes = [permissions.IsAuthenticated, IsOwnerPublished]
+        elif self.action in ('add_rating', 'add_comment'):
+            permission_classes = [permissions.IsAuthenticated]
         else:
             permission_classes = []
         return [permission() for permission in permission_classes]
@@ -50,13 +54,34 @@ class PublishViewSet(viewsets.GenericViewSet,
                 'rating__star_id')).order_by('-date')
         return published
 
+    @action(methods=['post'], detail=True)
+    def add_rating(self, request, *args, **kwargs):
+        """Установка рейтинга к публикациям"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = Users.objects.get(username=request.user.username)
+            serializer.save(ip=user.username, published=self.get_object())
+            return Response(data='Success', status=status.HTTP_201_CREATED)
+        else:
+            return Response(data='Error', status=status.HTTP_400_BAD_REQUEST)
 
-class GroupsViewSet(viewsets.GenericViewSet,
-                    mixins.ListModelMixin,
-                    mixins.RetrieveModelMixin,
-                    mixins.UpdateModelMixin,
-                    mixins.DestroyModelMixin):
+    @action(methods=['post'], detail=True)
+    def add_comment(self, request, *args, **kwargs):
+        """Добавление комментарие к публикациям"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            Comments.objects.create(**serializer.validated_data,
+                                    users_id=request.user.pk,
+                                    published_id=self.get_object().id
+                                    )
+            return Response(data='Комментарий добавлен.', status=status.HTTP_201_CREATED)
+        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
+
+
+class GroupsViewSet(viewsets.ModelViewSet):
     """Удаление/обновление/вывод группы и вывод групп. Подписаться на группу/отписаться от группы."""
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'slug']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -65,10 +90,14 @@ class GroupsViewSet(viewsets.GenericViewSet,
             return GroupDetailSerializer
         if self.action in ('update', 'partial_update', 'create'):
             return GroupCreateSerializer
+        if self.action == 'add_published':
+            return UpdatePublishedSerializer
 
     def get_permissions(self):
         if self.action in ('update', 'partial_update', 'destroy'):
             permission_classes = [permissions.IsAuthenticated, IsOwnerGroup]
+        elif self.action == 'add_published':
+            permission_classes = [CheckForSubsGroup, permissions.IsAuthenticated]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -81,7 +110,14 @@ class GroupsViewSet(viewsets.GenericViewSet,
             queryset = Groups.objects.all()
         return queryset
 
-    @action(detail=True, url_path='group_activity', url_name='group_activity')
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            Groups.objects.create(**serializer.validated_data, owner_id=request.user.pk)
+            return Response(data='Группа создана', status=status.HTTP_201_CREATED)
+        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True)
     def group_activity(self, request, *args, **kwargs):
         """Подписаться на группу/отписаться от группы"""
         group = self.get_object()
@@ -94,13 +130,24 @@ class GroupsViewSet(viewsets.GenericViewSet,
             return Response(data={'status': 'Вы подписались от группы.'}, status=status.HTTP_200_OK)
         return Response(data={'status': 'Ошибка.'}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(methods=['post'], detail=True)
+    def add_published(self, request, *args, **kwargs):
+        """Создание публикации"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            Published.objects.create(**serializer.validated_data,
+                                     owner_id=request.user.pk,
+                                     group_id=self.get_object().id
+                                     )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
 
-class UserViewSet(viewsets.GenericViewSet,
-                  mixins.ListModelMixin,
-                  mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin):
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet, mixins.UpdateModelMixin):
     """Обновление/вывод пользователя и вывод друзей пользователя, система друзей, проверка/создание чатов"""
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -114,11 +161,11 @@ class UserViewSet(viewsets.GenericViewSet,
         if self.action in ('update', 'partial_update'):
             return HomeUpdateSerializer
 
-    def get_permissions(self):  # Разрешения для friend_activity, create_dialog(убрать, если на своей старинце)
+    def get_permissions(self):
         if self.action == 'list':
             permission_classes = [permissions.IsAuthenticated]
-        # elif self.action == 'friend_activity':
-        #     permission_classes = [permissions.IsAuthenticated, IsReadOnlyOrNotOwner]
+        elif self.action in ('friend_activity', 'create_dialog'):
+            permission_classes = [permissions.IsAuthenticated, TrueIfNotOwner]
         else:
             permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
         return [permission() for permission in permission_classes]
@@ -131,7 +178,7 @@ class UserViewSet(viewsets.GenericViewSet,
             queryset = Users.objects.all()
         return queryset
 
-    @action(detail=True, url_path='user_activity', url_name='user_activity')
+    @action(detail=True)
     def friend_activity(self, request, *args, **kwargs):
         """Система друзей"""
         user = self.get_object()
@@ -214,79 +261,20 @@ class ChatDetailView(generics.RetrieveAPIView, generics.CreateAPIView):
         return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
 
 
+class CommentViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    """Вывод комментария, система лайков для комментариев"""
+    serializer_class = CommentRetrieveSerializer
+    queryset = Comments.objects.all()
 
-
-class AddGroupView(generics.CreateAPIView):
-    """Создание группы"""
-    serializer_class = GroupCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            Groups.objects.create(**serializer.validated_data, owner_id=request.user.pk)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
-
-
-class AddPublishedView(generics.CreateAPIView):
-    """Создание публикации"""
-    queryset = Groups.objects.all()
-    serializer_class = UpdatePublishedSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            Published.objects.create(**serializer.validated_data,
-                                     owner_id=request.user.pk,
-                                     group_id=self.get_object().id
-                                     )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
-
-
-class AddCommentView(generics.CreateAPIView):
-    """Создание комментария"""
-    queryset = Published.objects.all()
-    serializer_class = CommentsAddSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            Comments.objects.create(**serializer.validated_data,
-                                    users_id=request.user.pk,
-                                    published_id=self.get_object().id
-                                    )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(data='Ошибка создания', status=status.HTTP_404_NOT_FOUND)
-
-
-# Logic
-class AddStarRating(generics.CreateAPIView):
-    """Звездный рейтинг"""
-    queryset = Published.objects.all()
-    serializer_class = RatingSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            user = Users.objects.get(username=request.user.username)
-            serializer.save(ip=user.username, published=self.get_object())
-            return Response(data='Success', status=status.HTTP_201_CREATED)
-        else:
-            return Response(data='Error', status=status.HTTP_400_BAD_REQUEST)
-
-
-@login_required(login_url='/users/login/')
-def like_view(request, com_id):
-    """Лайки комментариев"""
-    comment = Comments.objects.prefetch_related('like').get(id=com_id)
-    user = Users.objects.get(username=request.user.username)
-    if user in comment.like.all():
-        comment.like.remove(user)
-    else:
-        comment.like.add(user)
-    return redirect(comment)
+    @action(detail=True)
+    def add_like_comment(self, request, *args, **kwargs):
+        """Лайки комментариев"""
+        comment = self.get_object()
+        user = Users.objects.get(username=request.user.username)
+        if user in comment.like.all():
+            comment.like.remove(user)
+            return Response(data='Лайк убран', status=status.HTTP_200_OK)
+        elif user not in comment.like.all():
+            comment.like.add(user)
+            return Response(data='Лайк добавлен', status=status.HTTP_200_OK)
+        return Response(data='Error', status=status.HTTP_404_NOT_FOUND)

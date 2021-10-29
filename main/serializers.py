@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from main.models import Published, Groups, Comments, Rating, RatingStar
+from main.models import Published, Groups, Comments, Rating
 from users.models import Users, PostSubscribers, Message
 
 
@@ -61,12 +61,13 @@ class RatingSerializer(serializers.ModelSerializer):
 
 
 class CommentsSerializer(serializers.ModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name='comment-detail')
     users = UserSerializer()
     like = UserSerializer(many=True)
 
     class Meta:
         model = Comments
-        fields = ('biography', 'users', 'date', 'like')
+        fields = ('url', 'biography', 'users', 'date', 'like')
 
 
 # Main
@@ -155,17 +156,10 @@ class GroupDetailSerializer(serializers.ModelSerializer):
         fields = ('name', 'slug', 'photo', 'owner', 'users', 'published')
 
 
-# class AddPublishedSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Published
-#         fields = ('name', 'slug', 'biography', 'photo', 'group')
-
-
 class UpdatePublishedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Published
         fields = ('name', 'slug', 'biography', 'photo')
-
 
 
 class DetailPublishSerializer(PublishedSerializer):
@@ -180,3 +174,13 @@ class CommentsAddSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comments
         fields = ('biography',)
+
+
+class CommentRetrieveSerializer(serializers.ModelSerializer):
+    published = MyPublishedSerializer()
+    users = UserSerializer()
+    like = UserSerializer(many=True)
+
+    class Meta:
+        model = Comments
+        fields = ('published', 'date', 'biography', 'users', 'like')
