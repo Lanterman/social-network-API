@@ -1,7 +1,7 @@
 from rest_framework.exceptions import ValidationError
 
-from users.models import Users
-from users.utils import AbstractSerializers
+from .models import Users
+from .utils import AbstractSerializers
 from rest_framework import serializers
 
 

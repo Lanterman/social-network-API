@@ -1,8 +1,9 @@
 from rest_framework import generics, status, viewsets, mixins, permissions
 from rest_framework.response import Response
 
-from users.permissions import Anonymous, IsOwnerOrClose
-from users.serializers import *
+from .models import Users
+from .permissions import Anonymous, IsOwnerOrClose
+from .serializers import *
 
 
 class UserRegisterView(generics.CreateAPIView):

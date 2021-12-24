@@ -1,8 +1,8 @@
 from django.db.models import Avg
 from django.test import TestCase
-from main.models import Groups, Rating, RatingStar
-from main.serializers import *
-from users.models import Users, Chat
+from scr.main.models import Groups, Rating, RatingStar
+from scr.main.serializers import *
+from scr.users.models import Users, Chat
 
 
 class PublishedSerializerTestCase(TestCase):

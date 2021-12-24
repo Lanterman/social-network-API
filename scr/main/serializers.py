@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from main.models import Published, Groups, Comments, Rating
-from users.models import Users, PostSubscribers, Message
+from .models import Published, Groups, Comments, Rating
+from scr.users.models import Users, PostSubscribers, Message
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):

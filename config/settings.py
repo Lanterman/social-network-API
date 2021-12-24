@@ -38,8 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'main.apps.MainConfig',
-    'users.apps.UsersConfig',
+    'scr.main.apps.MainConfig',
+    'scr.users.apps.UsersConfig',
 
     'rest_framework',
     'drf_yasg',
@@ -55,7 +55,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Sendji_004.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Sendji_004.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
@@ -82,9 +82,9 @@ WSGI_APPLICATION = 'Sendji_004.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'Sendji_004(API)',
+        'NAME': 'ns_api',
         'USER': 'postgres',
-        'PASSWORD': 'karmavdele',
+        'PASSWORD': 'postgres',
         'HOST': 'postgres_db',
         'PORT': 5432,
     }

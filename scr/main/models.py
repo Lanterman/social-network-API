@@ -2,7 +2,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
-from users.models import Users
+from scr.users.models import Users
 
 
 class Abstract(models.Model):

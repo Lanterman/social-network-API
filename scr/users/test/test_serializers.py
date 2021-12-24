@@ -1,7 +1,7 @@
 from django.test import TestCase
 
-from users.models import Users
-from users.serializers import *
+from scr.users.models import Users
+from scr.users.serializers import *
 
 
 class ProfileUserSerializerTestCase(TestCase):

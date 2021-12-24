@@ -3,11 +3,11 @@ from django.shortcuts import redirect
 from rest_framework import generics, status, filters, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from main.pagination import PaginationPublished
-from main.serializers import *
-from main.models import *
-from users.models import Chat
-from users.permissions import *
+from .pagination import PaginationPublished
+from .serializers import *
+from .models import *
+from scr.users.models import Chat, Users, PostSubscribers, Message
+from scr.users.permissions import *
 
 
 class PublishViewSet(viewsets.ReadOnlyModelViewSet, mixins.UpdateModelMixin, mixins.DestroyModelMixin):

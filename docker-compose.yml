@@ -3,24 +3,29 @@ version: '3.7'
 
 services:
   postgres_db:
-    image: postgres:13
+    image: postgres:14
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_PASSWORD: karmavdele
+      POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: Sendji_004(API)
+      POSTGRES_DB: ns_api
     container_name: postgres_db
 
   social-network:
     build:
       context: ./
       dockerfile: Dockerfile
-    command: bash -c "python manage.py makemigrations &&
+    command: bash -c "pip install --upgrade pip &&
+                      python manage.py makemigrations &&
                       python manage.py migrate --noinput &&
                       python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ns_api
     ports:
       - 8000:8000
     depends_on:

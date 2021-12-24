@@ -1,8 +1,8 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from main.serializers import *
-from users.models import Users, Chat
+from scr.main.serializers import *
+from scr.users.models import Users, Chat
 
 
 class PublishViewSetAPITest(APITestCase):
