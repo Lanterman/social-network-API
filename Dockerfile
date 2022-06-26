@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # Просим Python не буферизовать stdin/stdout
 ENV PYTHONUNBUFFERED 1
 
+RUN pip3 install --upgrade pip
+
 WORKDIR  /app
 
 COPY ./requirements.txt requirements.txt
